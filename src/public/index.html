@@ -192,8 +192,8 @@ dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("drag
 // Upload（1枚ずつ送信で 413 を避ける。大きい画像はクライアントでリサイズ）
 const UPLOAD_CHUNK = 1;
 const UPLOAD_TIMEOUT_MS = 90000;
-const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB 超ならリサイズ
-const RESIZE_MAX = 1200;
+const MAX_FILE_BYTES = 800 * 1024; // 800KB 超ならリサイズ（Vercel 413 対策）
+const RESIZE_MAX = 1000;
 
 async function resizeIfNeeded(file) {
   if (file.size <= MAX_FILE_BYTES) return file;
@@ -209,7 +209,7 @@ async function resizeIfNeeded(file) {
       c.width = w; c.height = h;
       const ctx = c.getContext("2d");
       ctx.drawImage(img, 0, 0, w, h);
-      c.toBlob(blob => resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file), "image/jpeg", 0.85);
+      c.toBlob(blob => resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file), "image/jpeg", 0.78);
     };
     img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
     img.src = url;
@@ -234,13 +234,13 @@ async function handleFiles(fileList) {
       const t = setTimeout(() => ac.abort(), UPLOAD_TIMEOUT_MS);
       const res = await fetch(`${API}/upload`, { method: "POST", body: fd, signal: ac.signal });
       clearTimeout(t);
+      const text = await res.text();
       if (!res.ok) {
-        const text = await res.text();
         let errMsg = res.statusText;
-        try { const j = JSON.parse(text); errMsg = j.error || errMsg; } catch {}
+        try { const j = JSON.parse(text); errMsg = j.error || errMsg; } catch { if (text) errMsg = text.slice(0, 80); }
         throw new Error(errMsg || `HTTP ${res.status}`);
       }
-      const data = await res.json().catch(() => ({}));
+      const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
       done += data.count ?? chunk.length;
       updateStatus(done, total);
     }
