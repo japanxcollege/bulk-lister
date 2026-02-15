@@ -13,9 +13,33 @@
 - **Server**: Hono (Node.js)
 - **DB**: SQLite (永続ボリューム)
 - **AI**: Claude Sonnet (Vision)
-- **Deploy**: fly.io (Tokyo リージョン)
+- **Deploy**: fly.io (Tokyo リージョン) または **Vercel**（無料枠あり、写真は少なめ）
 
 ## 🚀 デプロイ手順
+
+### Vercel でホスト（おすすめ・無料枠で運用）
+
+fly.io の $38 プランを使わず、**Vercel の無料枠**で動かせます。写真は **Vercel Blob** に保存（無料枠内で少なめに使う想定）です。
+
+1. **Vercel にプロジェクトをインポート**
+   - [vercel.com](https://vercel.com) でログイン → **Add New** → **Project** → GitHub の **japanxcollege/bulk-lister** を選択
+   - Framework は **Other** のままで OK → **Deploy** はまだ押さない
+
+2. **ストレージを追加（Dashboard で）**
+   - プロジェクトの **Storage** タブ → **Create Database** → **Postgres**（Vercel Postgres）を追加
+   - 同じく **Create Store** → **Blob** を追加  
+   → これで `POSTGRES_URL` と `BLOB_READ_WRITE_TOKEN` が自動で環境変数に入ります
+
+3. **環境変数を設定**
+   - プロジェクト **Settings** → **Environment Variables**
+   - `ANTHROPIC_API_KEY` = [Anthropic Console](https://console.anthropic.com/) で発行したキー（`sk-ant-...`）を追加
+
+4. **Deploy**
+   - **Deploy** を実行。完了後、`https://bulk-lister-xxx.vercel.app` でアクセスできます。
+
+**注意**
+- 写真は **Vercel Blob** に保存されます。無料枠（1GB など）を超えると課金になるので、**そんなに保存しない**運用にすると安心です。
+- リクエスト body の制限（約 4.5MB）のため、一度に上げる写真は少なめにしてください。
 
 ### 前提条件
 - [flyctl](https://fly.io/docs/flyctl/install/) インストール済み
@@ -42,11 +66,46 @@
    - 「Launch app」→ **Deploy from GitHub** を選択
    - リポジトリ一覧から `bulk-lister` を選び、ブランチ `main`、ビルドは自動検出
    - アプリ名を `bulk-lister` にし、リージョン **Nrt (Tokyo)** を選択してデプロイ
-   - デプロイ後、**Secrets** で `ANTHROPIC_API_KEY` を設定
-   - **Volumes** で `lister_data`（1GB、Nrt）を作成し、マウント先 `/data` を設定（fly.toml の `[mounts]` と一致させる）
+   - デプロイ後、**Secrets** で `ANTHROPIC_API_KEY` を設定（取得方法は下記）
+   - **Volumes** で `lister_data`（1GB、Nrt）を作成し、マウント先 `/data` を設定（fly.toml の `[mounts]` と一致させる）。Volume は「取ってくる」のではなく **fly.io 上で新規作成** する（手順は下記）
 
 4. **CLI で既存アプリに合わせる場合（任意）**
    - すでに `fly launch` や `./deploy.sh` で `bulk-lister` を作っている場合は、このリポジトリを clone したあと `fly deploy` するだけでも更新できます。
+
+### ANTHROPIC_API_KEY の取り方
+
+**「取ってくる」= Anthropic のサイトで API キーを 1 つ発行します。**
+
+1. [Anthropic Console](https://console.anthropic.com/) を開く
+2. アカウントでログイン（なければサインアップ）
+3. 左メニューや設定から **「API Keys」** を開く
+4. **「Create Key」** で新しいキーを作成
+5. 表示されたキー（`sk-ant-api03-...` のような文字列）を **一度だけ** コピーして保存（再表示されないため）
+6. fly.io ではこの値を **Secrets** に登録する（下記「fly.io での設定」参照）
+
+※ 課金は利用量に応じて発生します。料金は [Anthropic の料金ページ](https://www.anthropic.com/pricing) を参照。
+
+### Volumes（lister_data）の作り方
+
+**「取ってくる」ものではなく、fly.io 上でボリュームを新規作成します。** 写真や SQLite の DB を保存するためのディスクです。
+
+- **Dashboard の場合**
+  1. [fly.io Dashboard](https://fly.io/dashboard) → アプリ **bulk-lister** を開く
+  2. 左の **「Volumes」** をクリック
+  3. **「Create Volume」** → 名前 `lister_data`、リージョン **Nrt (Tokyo)**、サイズ **1 GB**、マウントパス **`/data`** で作成
+
+- **CLI の場合**
+  ```bash
+  fly volumes create lister_data --region nrt --size 1 -a bulk-lister
+  ```
+  作成後、fly.toml の `[mounts]` のとおり `/data` にマウントされます（デプロイ時に自動で紐づく場合があります。紐づいていなければ Dashboard の Volumes でマウント先を `/data` に設定）。
+
+### fly.io での設定まとめ（Secrets と Volume）
+
+| 項目 | 取り方・作り方 | fly.io での設定場所 |
+|------|----------------|----------------------|
+| **ANTHROPIC_API_KEY** | [Anthropic Console](https://console.anthropic.com/) → API Keys → Create Key で発行 | Dashboard → bulk-lister → **Secrets** → `ANTHROPIC_API_KEY` を追加。または CLI: `fly secrets set ANTHROPIC_API_KEY=sk-ant-... -a bulk-lister` |
+| **lister_data** | 外部から取得しない。fly.io 上で新規作成 | Dashboard → bulk-lister → **Volumes** → Create Volume（名前 `lister_data`、リージョン Nrt、1GB、マウント `/data`）。または CLI: `fly volumes create lister_data --region nrt --size 1 -a bulk-lister` |
 
 ### コマンド
 

@@ -92,3 +92,12 @@ export function getDB() {
     }
   };
 }
+
+/** Vercel 用: POSTGRES_URL のときは db-vercel を返す。常に await すること */
+export async function getDBAsync() {
+  if (process.env.POSTGRES_URL) {
+    const { getDB: getVercelDB } = await import("./db-vercel.js");
+    return getVercelDB();
+  }
+  return Promise.resolve(getDB());
+}

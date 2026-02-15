@@ -24,13 +24,23 @@ const SYSTEM_PROMPT = `あなたはフリマアプリの出品代行アシスタ
 - 価格は控えめに設定（早く売れることを優先）
 - 必ず valid JSON のみを返すこと（マークダウンやコメント不要）`;
 
-export async function analyzePhoto(photoPath) {
-  const ext = path.extname(photoPath).toLowerCase();
+export async function analyzePhoto(photoPathOrUrl) {
+  let imageData;
+  let ext = ".jpg";
+  if (typeof photoPathOrUrl === "string" && photoPathOrUrl.startsWith("http")) {
+    const res = await fetch(photoPathOrUrl);
+    if (!res.ok) throw new Error("Failed to fetch image");
+    imageData = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("png")) ext = ".png";
+    else if (contentType.includes("webp")) ext = ".webp";
+  } else {
+    imageData = fs.readFileSync(photoPathOrUrl);
+    ext = path.extname(photoPathOrUrl).toLowerCase();
+  }
   const mediaType = ext === ".png" ? "image/png"
     : ext === ".webp" ? "image/webp"
     : "image/jpeg";
-
-  const imageData = fs.readFileSync(photoPath);
   const base64 = imageData.toString("base64");
 
   const response = await client.messages.create({
