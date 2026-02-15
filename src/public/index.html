@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulk Lister - バルク出品ツール</title>
+<style>
+:root {
+  --bg:#0a0a0f;--surface:#12121a;--s2:#1a1a25;--border:#2a2a3a;
+  --accent:#6366f1;--green:#22c55e;--orange:#f59e0b;--pink:#ec4899;--cyan:#06b6d4;
+  --text:#e4e4ef;--muted:#8888a0;--dim:#55556a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',sans-serif;min-height:100vh;}
+.header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.header h1{font-size:17px;font-weight:700;}
+.actions{display:flex;gap:6px;flex-wrap:wrap;}
+.btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--s2);color:var(--text);cursor:pointer;font-size:12px;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.green{background:var(--green);border-color:var(--green);color:#fff;}
+.btn.orange{background:var(--orange);border-color:var(--orange);color:#000;}
+.btn.pink{background:var(--pink);border-color:var(--pink);color:#fff;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn.sm{padding:5px 9px;font-size:11px;}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px;}
+.tab{padding:10px 18px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* Upload */
+.upload-zone{margin:20px;padding:36px;border:2px dashed var(--border);border-radius:12px;text-align:center;transition:all .2s;cursor:pointer;}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:rgba(99,102,241,.05);}
+.upload-zone p{color:var(--muted);font-size:13px;margin-top:6px;}
+.upload-zone .icon{font-size:40px;}
+
+/* Status */
+.status-bar{margin:0 20px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px;font-size:12px;}
+.progress{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--accent);transition:width .3s;border-radius:2px;}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:all .2s;}
+.card:hover{border-color:var(--accent);}
+.card img{width:100%;height:180px;object-fit:cover;display:block;}
+.card .body{padding:14px;}
+.card .title{font-size:14px;font-weight:600;margin-bottom:6px;}
+.card .desc{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:10px;max-height:60px;overflow:hidden;}
+.card .meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.tag{font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(99,102,241,.1);color:var(--accent);border:1px solid var(--border);}
+.price{font-size:17px;font-weight:700;color:var(--green);}
+.card-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;}
+
+.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;}
+.badge.pending{background:rgba(245,158,11,.15);color:var(--orange);}
+.badge.analyzed{background:rgba(34,197,94,.15);color:var(--green);}
+
+/* Jimoty Panel */
+.jimoty-panel{padding:20px;}
+.jimoty-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start;}
+.jimoty-item.done{opacity:.5;border-color:var(--green);}
+.jimoty-item img{width:80px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0;}
+.jimoty-info{flex:1;min-width:0;}
+.jimoty-info h3{font-size:14px;margin-bottom:4px;}
+.jimoty-info .desc-preview{font-size:11px;color:var(--muted);max-height:40px;overflow:hidden;margin-bottom:8px;}
+.jimoty-actions{display:flex;gap:5px;flex-wrap:wrap;}
+.jimoty-stats{display:flex;gap:16px;margin-bottom:16px;font-size:13px;}
+.jimoty-stats span{color:var(--muted);}
+.jimoty-stats strong{color:var(--text);}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;padding:20px;}
+.modal h2{font-size:15px;margin-bottom:14px;}
+.modal label{display:block;font-size:11px;color:var(--muted);margin:10px 0 3px;}
+.modal input,.modal textarea{width:100%;padding:9px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;font-family:inherit;}
+.modal textarea{min-height:90px;resize:vertical;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;}
+
+.empty{text-align:center;padding:50px 20px;color:var(--dim);}
+.empty .icon{font-size:50px;margin-bottom:12px;}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--accent);color:#fff;padding:10px 18px;border-radius:9px;font-size:12px;z-index:200;animation:slideIn .3s ease;}
+@keyframes slideIn{from{transform:translateY(16px);opacity:0;}}
+input[type="file"]{display:none;}
+
+/* Playwright status */
+.pw-status{margin:20px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:12px;}
+.pw-status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+.pw-status .dot.on{background:var(--green);}
+.pw-status .dot.off{background:var(--pink);}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <h1>📦 Bulk Lister</h1>
+    <div class="actions">
+      <button class="btn" onclick="exportCSV()">📥 CSV</button>
+      <button class="btn primary" onclick="analyzeAll()">🤖 全て解析</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="items" onclick="switchTab('items')">📷 アイテム</div>
+    <div class="tab" data-tab="jimoty" onclick="switchTab('jimoty')">🏪 ジモティー投稿</div>
+    <div class="tab" data-tab="mercari" onclick="switchTab('mercari')">🛒 メルカリ投稿</div>
+  </div>
+
+  <!-- ITEMS TAB -->
+  <div id="tab-items">
+    <div class="upload-zone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📸</div>
+      <p>写真をドラッグ＆ドロップ、またはクリックして選択</p>
+    </div>
+    <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFiles(this.files)">
+    <div id="statusBar" class="status-bar" style="display:none;margin-top:12px;">
+      <span id="statusText">処理中...</span>
+      <div class="progress"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <span id="statusCount">0/0</span>
+    </div>
+    <div id="itemGrid" class="grid"></div>
+    <div id="emptyState" class="empty"><div class="icon">📷</div><p>写真をアップロードして始めましょう</p></div>
+  </div>
+
+  <!-- JIMOTY TAB -->
+  <div id="tab-jimoty" style="display:none">
+    <div class="jimoty-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 style="font-size:16px;">🏪 ジモティー投稿アシスト</h2>
+        <div class="actions">
+          <button class="btn green sm" onclick="openJimotyPost()">＋ ジモティー投稿画面を開く</button>
+          <button class="btn sm" onclick="checkPwStatus()">🎭 自動投稿ステータス</button>
+        </div>
+      </div>
+
+      <div id="pwStatus" class="pw-status" style="display:none;"></div>
+
+      <div class="jimoty-stats" id="jimotyStats"></div>
+      <div id="jimotyList"></div>
+      <div id="jimotyEmpty" class="empty" style="display:none;">
+        <div class="icon">🏪</div>
+        <p>解析済みアイテムがありません。先に写真をアップロード＆解析してください。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MERCARI TAB -->
+  <div id="tab-mercari" style="display:none">
+    <div class="jimoty-panel">
+      <h2 style="font-size:16px;margin-bottom:12px;">🛒 メルカリ投稿アシスト</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+        メルカリはAI出品サポートが公式で使えます。ここでは説明文のコピーができます。<br>
+        コピー → メルカリアプリで「出品」→ 写真撮影 → 説明欄にペースト → 公式AIと併用で最速出品
+      </p>
+      <div id="mercariList"></div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal()"></div>
+  <div id="toastContainer"></div>
+</div>
+
+<script>
+const API = "/api";
+let items = [];
+let currentTab = "items";
+
+loadItems();
+
+// Tabs
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('tab-' + tab).style.display = '';
+  if (tab === 'jimoty') renderJimoty();
+  if (tab === 'mercari') renderMercari();
+}
+
+// Drag & Drop
+const dz = document.getElementById("dropzone");
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("dragover"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
+dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("dragover"); handleFiles(e.dataTransfer.files); });
+
+// Upload
+async function handleFiles(fileList) {
+  const fd = new FormData();
+  for (const f of fileList) fd.append("photos", f);
+  showStatus("アップロード中...", 0, fileList.length);
+  const res = await fetch(`${API}/upload`, { method:"POST", body:fd });
+  const data = await res.json();
+  hideStatus();
+  toast(`📸 ${data.count}件アップロード完了`);
+  loadItems();
+}
+
+// Load
+async function loadItems() {
+  items = await (await fetch(`${API}/items`)).json();
+  renderItems();
+}
+
+// Render Items
+function renderItems() {
+  const grid = document.getElementById("itemGrid");
+  const empty = document.getElementById("emptyState");
+  if (!items.length) { grid.innerHTML=""; empty.style.display="block"; return; }
+  empty.style.display="none";
+
+  grid.innerHTML = items.map(item => {
+    const thumb = (item.photo_thumb || item.photo_path).split("/").pop();
+    return `<div class="card">
+      <img src="${API}/photo/${thumb}" loading="lazy">
+      <div class="body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span class="badge ${item.status==='analyzed'?'analyzed':'pending'}">${item.status==='analyzed'?'✅ 解析済':'⏳ 未解析'}</span>
+          ${item.estimated_price?`<span class="price">¥${item.estimated_price.toLocaleString()}</span>`:''}
+        </div>
+        <div class="title">${item.title_ja||'未解析'}</div>
+        <div class="desc">${item.desc_ja||'写真を解析すると説明文が生成されます'}</div>
+        <div class="meta">
+          ${item.category?`<span class="tag">${item.category}</span>`:''}
+          <span class="tag" style="color:${item.mercari_status==='listed'?'var(--green)':'var(--dim)'}">M:${item.mercari_status}</span>
+          <span class="tag" style="color:${item.jimoty_status==='listed'?'var(--green)':'var(--dim)'}">J:${item.jimoty_status}</span>
+        </div>
+        <div class="card-actions">
+          ${item.status==='pending'?`<button class="btn sm" onclick="analyzeSingle(${item.id})">🤖 解析</button>`:''}
+          ${item.status==='analyzed'?`<button class="btn sm" onclick="editItem(${item.id})">✏️</button>`:''}
+          <button class="btn sm" style="margin-left:auto;color:var(--pink);" onclick="deleteItem(${item.id})">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// Render Jimoty
+function renderJimoty() {
+  const analyzed = items.filter(i => i.status === 'analyzed');
+  const listed = analyzed.filter(i => i.jimoty_status === 'listed').length;
+
+  document.getElementById("jimotyStats").innerHTML =
+    `<span>合計: <strong>${analyzed.length}件</strong></span>
+     <span>投稿済: <strong style="color:var(--green)">${listed}件</strong></span>
+     <span>未投稿: <strong style="color:var(--orange)">${analyzed.length - listed}件</strong></span>`;
+
+  if (!analyzed.length) {
+    document.getElementById("jimotyList").innerHTML = "";
+    document.getElementById("jimotyEmpty").style.display = "block";
+    return;
+  }
+  document.getElementById("jimotyEmpty").style.display = "none";
+
+  document.getElementById("jimotyList").innerHTML = analyzed.map((item, idx) => {
+    const thumb = (item.photo_thumb || item.photo_path).split("/").pop();
+    const done = item.jimoty_status === 'listed';
+    return `<div class="jimoty-item ${done?'done':''}">
+      <img src="${API}/photo/${thumb}">
+      <div class="jimoty-info">
+        <h3>${idx+1}. ${item.title_ja||'無題'} ${done?'✅':''}</h3>
+        <div class="desc-preview">${item.desc_ja||''}</div>
+        <div style="font-size:12px;color:var(--green);margin-bottom:6px;">¥${(item.estimated_price||0).toLocaleString()}</div>
+        <div class="jimoty-actions">
+          <button class="btn sm orange" onclick="copyJimoty(${item.id})">📋 コピー</button>
+          <button class="btn sm green" onclick="openJimotyPost()">🔗 投稿画面</button>
+          ${!done?`<button class="btn sm" onclick="markJimotyListed(${item.id})">✅ 投稿済み</button>`:''}
+          <button class="btn sm" onclick="previewJimoty(${item.id})">👁 プレビュー</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// Render Mercari
+function renderMercari() {
+  const analyzed = items.filter(i => i.status === 'analyzed');
+  if (!analyzed.length) {
+    document.getElementById("mercariList").innerHTML = '<div class="empty"><div class="icon">🛒</div><p>解析済みアイテムがありません</p></div>';
+    return;
+  }
+  document.getElementById("mercariList").innerHTML = analyzed.map((item, idx) => {
+    const thumb = (item.photo_thumb || item.photo_path).split("/").pop();
+    const done = item.mercari_status === 'listed';
+    return `<div class="jimoty-item ${done?'done':''}">
+      <img src="${API}/photo/${thumb}">
+      <div class="jimoty-info">
+        <h3>${idx+1}. ${item.title_ja||'無題'} ${done?'✅':''}</h3>
+        <div class="desc-preview">${item.desc_ja||''}</div>
+        <div style="font-size:12px;color:var(--green);margin-bottom:6px;">¥${(item.estimated_price||0).toLocaleString()}</div>
+        <div class="jimoty-actions">
+          <button class="btn sm pink" onclick="copyMercari(${item.id})">📋 コピー</button>
+          ${!done?`<button class="btn sm" onclick="markMercariListed(${item.id})">✅ 出品済み</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Jimoty Actions ──
+async function copyJimoty(id) {
+  const res = await fetch(`${API}/jimoty/template/${id}`);
+  const data = await res.json();
+  await navigator.clipboard.writeText(data.clipboard_text);
+  toast("📋 ジモティー用テキストをコピーしました");
+}
+
+function openJimotyPost() {
+  window.open("https://jmty.jp/sale/post", "_blank");
+}
+
+async function markJimotyListed(id) {
+  await fetch(`${API}/jimoty/mark-listed/${id}`, { method:"POST" });
+  toast("✅ 投稿済みにしました");
+  await loadItems();
+  renderJimoty();
+}
+
+async function previewJimoty(id) {
+  const res = await fetch(`${API}/jimoty/template/${id}`);
+  const data = await res.json();
+  document.getElementById("modal").style.display = "flex";
+  document.getElementById("modal").innerHTML = `
+    <div class="modal">
+      <h2>🏪 ジモティー投稿プレビュー</h2>
+      <label>タイトル</label>
+      <input value="${data.title.replace(/"/g,'&quot;')}" readonly onclick="this.select()">
+      <label>説明文</label>
+      <textarea readonly onclick="this.select()">${data.desc}</textarea>
+      <label>価格</label>
+      <input value="¥${data.price.toLocaleString()}" readonly>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">閉じる</button>
+        <button class="btn orange" onclick="navigator.clipboard.writeText(\`${data.clipboard_text.replace(/`/g,'\\`').replace(/\\/g,'\\\\')}\`);toast('📋 コピーしました')">📋 全文コピー</button>
+        <button class="btn green" onclick="openJimotyPost()">🔗 投稿画面を開く</button>
+      </div>
+    </div>`;
+}
+
+// ── Mercari Actions ──
+async function copyMercari(id) {
+  const res = await fetch(`${API}/mercari/copy/${id}`);
+  const data = await res.json();
+  await navigator.clipboard.writeText(data.clipboard_text);
+  toast("📋 メルカリ用テキストをコピーしました");
+}
+
+async function markMercariListed(id) {
+  await fetch(`${API}/items/${id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({mercari_status:"listed"}) });
+  toast("✅ 出品済みにしました");
+  await loadItems();
+  renderMercari();
+}
+
+// ── Playwright Status ──
+async function checkPwStatus() {
+  const el = document.getElementById("pwStatus");
+  el.style.display = "block";
+  try {
+    const res = await fetch(`${API}/jimoty/auto/status`);
+    const data = await res.json();
+    el.innerHTML = data.available
+      ? `<span class="dot on"></span>🎭 Playwright自動投稿: <strong style="color:var(--green)">利用可能</strong>`
+      : `<span class="dot off"></span>🎭 Playwright自動投稿: <strong style="color:var(--pink)">利用不可</strong> — ${data.reason}
+         <br><span style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">
+         ローカルで <code>node -e "import('./src/services/jimoty-playwright.js').then(m=>m.saveLoginSession())"</code> を実行してセッションを作成してください</span>`;
+  } catch { el.innerHTML = '<span class="dot off"></span>ステータス取得失敗'; }
+}
+
+// ── Common Actions ──
+async function analyzeSingle(id) {
+  toast("🤖 解析中...");
+  const res = await fetch(`${API}/analyze/${id}`, { method:"POST" });
+  const d = await res.json();
+  toast(d.ok ? "✅ 解析完了" : "❌ "+d.error);
+  loadItems();
+}
+
+async function analyzeAll() {
+  const pending = items.filter(i => i.status === "pending");
+  if (!pending.length) { toast("解析対象なし"); return; }
+  showStatus("🤖 一括解析中...", 0, pending.length);
+  let done = 0;
+  for (const item of pending) {
+    await fetch(`${API}/analyze/${item.id}`, { method:"POST" });
+    updateStatus(++done, pending.length);
+  }
+  hideStatus();
+  toast(`✅ ${done}件の解析完了`);
+  loadItems();
+}
+
+function editItem(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById("modal").style.display = "flex";
+  document.getElementById("modal").innerHTML = `
+    <div class="modal">
+      <h2>✏️ 編集</h2>
+      <label>商品名</label><input id="ed_title" value="${(item.title_ja||'').replace(/"/g,'&quot;')}">
+      <label>説明文</label><textarea id="ed_desc">${item.desc_ja||''}</textarea>
+      <label>カテゴリ</label><input id="ed_cat" value="${item.category||''}">
+      <label>価格 (円)</label><input id="ed_price" type="number" value="${item.estimated_price||0}">
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">キャンセル</button>
+        <button class="btn primary" onclick="saveEdit(${id})">💾 保存</button>
+      </div>
+    </div>`;
+}
+async function saveEdit(id) {
+  const body = { title_ja:document.getElementById("ed_title").value, desc_ja:document.getElementById("ed_desc").value,
+    category:document.getElementById("ed_cat").value, estimated_price:parseInt(document.getElementById("ed_price").value)||0 };
+  await fetch(`${API}/items/${id}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) });
+  closeModal(); toast("💾 保存しました"); loadItems();
+}
+
+async function deleteItem(id) {
+  if (!confirm("削除しますか？")) return;
+  await fetch(`${API}/items/${id}`, { method:"DELETE" });
+  toast("🗑 削除しました"); loadItems();
+}
+
+function exportCSV() { window.location.href = `${API}/export/jimoty-csv`; toast("📥 CSV DL開始"); }
+function closeModal() { document.getElementById("modal").style.display = "none"; }
+
+function showStatus(t, c, n) { document.getElementById("statusBar").style.display="flex"; document.getElementById("statusText").textContent=t; updateStatus(c,n); }
+function updateStatus(c, n) { document.getElementById("progressFill").style.width=`${(c/n)*100}%`; document.getElementById("statusCount").textContent=`${c}/${n}`; }
+function hideStatus() { document.getElementById("statusBar").style.display="none"; }
+
+function toast(msg) {
+  const el = document.createElement("div"); el.className="toast"; el.textContent=msg;
+  document.getElementById("toastContainer").appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+</script>
+</body>
+</html>
