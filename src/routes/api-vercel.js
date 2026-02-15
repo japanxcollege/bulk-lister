@@ -219,4 +219,9 @@ api.get("/export/jimoty-csv", async (c) => {
   });
 });
 
+api.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: err.message || "Internal Server Error" }, 500);
+});
+
 export { api as apiRoutes };

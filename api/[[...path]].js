@@ -12,6 +12,12 @@ const app = new Hono();
 app.use("/*", cors());
 app.route("/api", apiRoutes);
 
+// 未捕捉のエラーも JSON で返す（500 が HTML にならないように）
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: err.message || "Internal Server Error" }, 500);
+});
+
 // Vercel で / にアクセスしたときに index.html を返す（public はビルドに含まれる）
 app.get("/", (c) => {
   try {

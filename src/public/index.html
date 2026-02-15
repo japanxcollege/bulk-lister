@@ -235,11 +235,13 @@ async function handleFiles(fileList) {
       const res = await fetch(`${API}/upload`, { method: "POST", body: fd, signal: ac.signal });
       clearTimeout(t);
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        const text = await res.text();
+        let errMsg = res.statusText;
+        try { const j = JSON.parse(text); errMsg = j.error || errMsg; } catch {}
+        throw new Error(errMsg || `HTTP ${res.status}`);
       }
-      const data = await res.json();
-      done += data.count || chunk.length;
+      const data = await res.json().catch(() => ({}));
+      done += data.count ?? chunk.length;
       updateStatus(done, total);
     }
     hideStatus();
@@ -253,7 +255,21 @@ async function handleFiles(fileList) {
 
 // Load
 async function loadItems() {
-  items = await (await fetch(`${API}/items`)).json();
+  try {
+    const res = await fetch(`${API}/items`);
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = res.statusText;
+      try { const j = JSON.parse(text); msg = j.error || msg; } catch {}
+      toast("❌ 一覧取得失敗: " + msg);
+      items = [];
+    } else {
+      items = await res.json();
+    }
+  } catch (e) {
+    toast("❌ 一覧取得失敗: " + (e.message || "ネットワークエラー"));
+    items = [];
+  }
   renderItems();
 }
 
