@@ -1,3 +1,7 @@
+/**
+ * ローカル用 Node サーバー（npm run dev / start）
+ * Vercel では使わない。Vercel はルートの index.js → api アプリを使う。
+ */
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -14,7 +18,6 @@ app.use("/*", serveStatic({ root: "./src/public" }));
 const uploadDir = process.env.UPLOAD_DIR || "./uploads";
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// Init DB (async for sql.js) then start server
 await initDB();
 
 const port = parseInt(process.env.PORT || "8080");

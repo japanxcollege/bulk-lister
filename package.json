@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node src/index.js",
-    "start": "node src/index.js"
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "build": "node scripts/build-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
