@@ -444,9 +444,20 @@ async function checkPwStatus() {
 // ── Common Actions ──
 async function analyzeSingle(id) {
   toast("🤖 解析中...");
-  const res = await fetch(`${API}/analyze/${id}`, { method:"POST" });
-  const d = await res.json();
-  toast(d.ok ? "✅ 解析完了" : "❌ "+d.error);
+  try {
+    const res = await fetch(`${API}/analyze/${id}`, { method: "POST" });
+    const text = await res.text();
+    const d = res.ok ? (() => { try { return JSON.parse(text); } catch { return {}; } })() : null;
+    if (!res.ok) {
+      let msg = res.statusText;
+      try { const j = JSON.parse(text); msg = j.error || msg; } catch { if (text) msg = text.slice(0, 60); }
+      toast("❌ " + msg);
+    } else {
+      toast(d && d.ok ? "✅ 解析完了" : "❌ " + (d && d.error || "エラー"));
+    }
+  } catch (e) {
+    toast("❌ 解析失敗: " + (e.message || "エラー"));
+  }
   loadItems();
 }
 
@@ -456,7 +467,10 @@ async function analyzeAll() {
   showStatus("🤖 一括解析中...", 0, pending.length);
   let done = 0;
   for (const item of pending) {
-    await fetch(`${API}/analyze/${item.id}`, { method:"POST" });
+    try {
+      const res = await fetch(`${API}/analyze/${item.id}`, { method: "POST" });
+      await res.text();
+    } catch {}
     updateStatus(++done, pending.length);
   }
   hideStatus();

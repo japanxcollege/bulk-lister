@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node src/local-server.js",
     "start": "node src/local-server.js",
-    "build": "node scripts/build-check.mjs"
+    "build": "node scripts/build-check.mjs",
+    "test": "node scripts/api-test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

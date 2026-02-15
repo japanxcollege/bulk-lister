@@ -225,6 +225,8 @@ api.get("/export/jimoty-csv", async (c) => {
   });
 });
 
+api.notFound((c) => c.json({ error: "Not Found" }, 404));
+
 api.onError((err, c) => {
   console.error(err);
   return c.json({ error: err.message || "Internal Server Error" }, 500);

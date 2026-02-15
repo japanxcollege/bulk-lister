@@ -12,6 +12,9 @@ const app = new Hono();
 app.use("/*", cors());
 app.route("/api", apiRoutes);
 
+// 404 も JSON で返す（Vercel の HTML 404 にならないように）
+app.notFound((c) => c.json({ error: "Not Found" }, 404));
+
 // 未捕捉のエラーも JSON で返す（500 が HTML にならないように）
 app.onError((err, c) => {
   console.error(err);
