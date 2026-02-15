@@ -99,5 +99,7 @@ export async function getDBAsync() {
     const { getDB: getVercelDB } = await import("./db-vercel.js");
     return getVercelDB();
   }
-  return Promise.resolve(getDB());
+  throw new Error(
+    "POSTGRES_URL が設定されていません。Vercel の Storage で Postgres を追加し、環境変数をリンクしてください。"
+  );
 }
