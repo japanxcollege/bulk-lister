@@ -22,6 +22,32 @@
 - [Anthropic API Key](https://console.anthropic.com/) 取得済み
 - クレジットカード登録済み (fly.io)
 
+### GitHub からローンチ（japanxcollege@gmail.com）
+
+1. **GitHub にリポジトリを作る**
+   - [github.com](https://github.com) に **japanxcollege@gmail.com** でサインイン
+   - 「New repository」→ 名前は `bulk-lister`（任意）→ Create repository（README 等は追加しない）
+
+2. **このフォルダを GitHub に push**
+   ```bash
+   cd "/Users/shuta/Downloads/Bulk Lister v2"
+   git remote add origin https://github.com/<あなたのユーザー名>/bulk-lister.git
+   git push -u origin main
+   ```
+   ※ `<あなたのユーザー名>` は japanxcollege の GitHub ユーザー名に置き換え。初回 push で GitHub のログインを求められたら japanxcollege@gmail.com で認証。
+
+3. **fly.io で GitHub からデプロイ**
+   - [fly.io Dashboard](https://fly.io/dashboard) を開く
+   - 「Sign in」→ **GitHub** を選び、**japanxcollege@gmail.com** の GitHub アカウントでログイン
+   - 「Launch app」→ **Deploy from GitHub** を選択
+   - リポジトリ一覧から `bulk-lister` を選び、ブランチ `main`、ビルドは自動検出
+   - アプリ名を `bulk-lister` にし、リージョン **Nrt (Tokyo)** を選択してデプロイ
+   - デプロイ後、**Secrets** で `ANTHROPIC_API_KEY` を設定
+   - **Volumes** で `lister_data`（1GB、Nrt）を作成し、マウント先 `/data` を設定（fly.toml の `[mounts]` と一致させる）
+
+4. **CLI で既存アプリに合わせる場合（任意）**
+   - すでに `fly launch` や `./deploy.sh` で `bulk-lister` を作っている場合は、このリポジトリを clone したあと `fly deploy` するだけでも更新できます。
+
 ### コマンド
 
 ```bash
