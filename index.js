@@ -1,5 +1,7 @@
 /**
- * Vercel 用エントリ（Hono プリセットが参照する default export）
- * ローカルでは使わず npm run dev → src/server.js を実行する。
+ * Vercel 用エントリ。Hono プリセットが "hono を import するファイル" を探すため、
+ * ここで hono を import しつつ default で api アプリを export する。
  */
-export { default } from "./api/[[...path]].js";
+import { Hono } from "hono";
+import app from "./api/[[...path]].js";
+export default app;
