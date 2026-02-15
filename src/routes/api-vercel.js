@@ -18,33 +18,50 @@ import sharp from "sharp";
 const api = new Hono();
 
 // ──────────────────────────────────
-// Upload (Vercel Blob)
+// Upload (Vercel Blob) — 1リクエストあたり枚数制限・エラー返却で止まらないように
 // ──────────────────────────────────
+const MAX_FILES_PER_UPLOAD = 10;
+
 api.post("/upload", async (c) => {
-  const body = await c.req.parseBody({ all: true });
-  const files = Array.isArray(body["photos"]) ? body["photos"] : [body["photos"]];
-  const db = await getDBAsync();
-  const inserted = [];
-
-  for (const file of files) {
-    if (!file || typeof file === "string") continue;
-    const ext = path.extname(file.name) || ".jpg";
-    const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`;
-
-    const buf = Buffer.from(await file.arrayBuffer());
-    let photoUrl, thumbUrl;
-    try {
-      const thumbBuf = await sharp(buf).resize(400, 400, { fit: "inside" }).jpeg({ quality: 80 }).toBuffer();
-      thumbUrl = await putThumb(thumbBuf, `thumb_${filename}`);
-    } catch {
-      thumbUrl = await putThumb(buf, `thumb_${filename}`);
+  try {
+    const body = await c.req.parseBody({ all: true });
+    let files = Array.isArray(body["photos"]) ? body["photos"] : [body["photos"]];
+    files = files.filter((f) => f && typeof f !== "string");
+    if (files.length > MAX_FILES_PER_UPLOAD) {
+      return c.json(
+        { error: `一度に${MAX_FILES_PER_UPLOAD}枚までです。${files.length}枚は多すぎます。` },
+        400
+      );
     }
-    photoUrl = await putPhoto(buf, filename);
+    if (files.length === 0) {
+      return c.json({ error: "画像がありません" }, 400);
+    }
 
-    const result = await db.prepare("INSERT INTO items (photo_path, photo_thumb) VALUES (?, ?)").run(photoUrl, thumbUrl);
-    inserted.push({ id: result.lastInsertRowid, photo_path: photoUrl });
+    const db = await getDBAsync();
+    const inserted = [];
+
+    for (const file of files) {
+      const ext = path.extname(file.name) || ".jpg";
+      const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`;
+
+      const buf = Buffer.from(await file.arrayBuffer());
+      let photoUrl, thumbUrl;
+      try {
+        const thumbBuf = await sharp(buf).resize(400, 400, { fit: "inside" }).jpeg({ quality: 80 }).toBuffer();
+        thumbUrl = await putThumb(thumbBuf, `thumb_${filename}`);
+      } catch {
+        thumbUrl = await putThumb(buf, `thumb_${filename}`);
+      }
+      photoUrl = await putPhoto(buf, filename);
+
+      const result = await db.prepare("INSERT INTO items (photo_path, photo_thumb) VALUES (?, ?)").run(photoUrl, thumbUrl);
+      inserted.push({ id: result.lastInsertRowid, photo_path: photoUrl });
+    }
+    return c.json({ ok: true, count: inserted.length, items: inserted });
+  } catch (err) {
+    console.error("upload error:", err);
+    return c.json({ error: err.message || "アップロードに失敗しました" }, 500);
   }
-  return c.json({ ok: true, count: inserted.length, items: inserted });
 });
 
 // ──────────────────────────────────

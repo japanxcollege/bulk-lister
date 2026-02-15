@@ -35,6 +35,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI'
 .upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:rgba(99,102,241,.05);}
 .upload-zone p{color:var(--muted);font-size:13px;margin-top:6px;}
 .upload-zone .icon{font-size:40px;}
+.upload-zone .hint{font-size:11px;color:var(--dim);margin-top:8px;}
 
 /* Status */
 .status-bar{margin:0 20px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:10px;font-size:12px;}
@@ -115,6 +116,7 @@ input[type="file"]{display:none;}
     <div class="upload-zone" id="dropzone" onclick="document.getElementById('fileInput').click()">
       <div class="icon">📸</div>
       <p>写真をドラッグ＆ドロップ、またはクリックして選択</p>
+      <p class="hint">一度に5枚まで推奨（多い場合は何度かに分けて）</p>
     </div>
     <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFiles(this.files)">
     <div id="statusBar" class="status-bar" style="display:none;margin-top:12px;">
@@ -187,16 +189,40 @@ dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("dra
 dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
 dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("dragover"); handleFiles(e.dataTransfer.files); });
 
-// Upload
+// Upload（分割送信 + タイムアウト + エラー表示で止まらないように）
+const UPLOAD_CHUNK = 3;
+const UPLOAD_TIMEOUT_MS = 90000;
+
 async function handleFiles(fileList) {
-  const fd = new FormData();
-  for (const f of fileList) fd.append("photos", f);
-  showStatus("アップロード中...", 0, fileList.length);
-  const res = await fetch(`${API}/upload`, { method:"POST", body:fd });
-  const data = await res.json();
-  hideStatus();
-  toast(`📸 ${data.count}件アップロード完了`);
-  loadItems();
+  const files = Array.from(fileList).filter(f => f.type && f.type.startsWith("image/"));
+  if (!files.length) { toast("画像を選択してください"); return; }
+  const total = files.length;
+  let done = 0;
+  showStatus("アップロード中...", 0, total);
+  try {
+    for (let i = 0; i < files.length; i += UPLOAD_CHUNK) {
+      const chunk = files.slice(i, i + UPLOAD_CHUNK);
+      const fd = new FormData();
+      chunk.forEach(f => fd.append("photos", f));
+      const ac = new AbortController();
+      const t = setTimeout(() => ac.abort(), UPLOAD_TIMEOUT_MS);
+      const res = await fetch(`${API}/upload`, { method: "POST", body: fd, signal: ac.signal });
+      clearTimeout(t);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      done += data.count || chunk.length;
+      updateStatus(done, total);
+    }
+    hideStatus();
+    toast(`📸 ${done}件アップロード完了`);
+    loadItems();
+  } catch (e) {
+    hideStatus();
+    toast(e.name === "AbortError" ? "⏱ タイムアウトしました。枚数を減らして再試行してください。" : "❌ アップロード失敗: " + (e.message || "エラー"));
+  }
 }
 
 // Load
