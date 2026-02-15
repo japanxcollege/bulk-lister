@@ -1,6 +1,7 @@
 /**
  * ローカル用 Node サーバー（npm run dev / start）
- * Vercel では使わない。Vercel はルートの index.js → api アプリを使う。
+ * ファイル名を local-server にしているのは、Vercel の Hono プリセットが
+ * src/server.js / src/index.js をエントリとして使うため。Vercel ではルート index.js のみ使う。
  */
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
