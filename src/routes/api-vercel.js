@@ -24,6 +24,12 @@ const MAX_FILES_PER_UPLOAD = 10;
 
 api.post("/upload", async (c) => {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return c.json(
+        { error: "BLOB_READ_WRITE_TOKEN が設定されていません。Vercel の Storage で Blob を追加してください。" },
+        500
+      );
+    }
     const body = await c.req.parseBody({ all: true });
     let files = Array.isArray(body["photos"]) ? body["photos"] : [body["photos"]];
     files = files.filter((f) => f && typeof f !== "string");
